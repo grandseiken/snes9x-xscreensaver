@@ -876,6 +876,9 @@ void S9xUpdateFrameCounter (int offset)
 {
 	offset++;
 	extern bool8 pad_read;
+#ifdef USE_XSS
+        GFX.FrameDisplay = false;
+#endif
 	if(!GFX.FrameDisplay)
 		*GFX.FrameDisplayString = 0;
 	else if(Movie.State == MOVIE_STATE_RECORD)

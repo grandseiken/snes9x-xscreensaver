@@ -310,7 +310,7 @@ ac_includes_default="\
 # include <unistd.h>
 #endif"
 
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT CXX CXXFLAGS ac_ct_CXX prog_nasm CXXCPP EGREP OPTIMIZE RTTIFLAG ZSNESFX ZSNESC4 ASMCPU ASMKREED SDD1_DECOMP CORRECT_VRAM_READS SPC700ASM I386SPC THREAD_SOUND SYSLIBS CPUINC SYSDEFINES JOYDEFINES X_INCLUDES BUILDDIR NASM GLIDE OPENGL AIDO DREAMCAST NETPLAY JMA LIBOBJS LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT CXX CXXFLAGS ac_ct_CXX prog_nasm CXXCPP EGREP OPTIMIZE RTTIFLAG ZSNESFX ZSNESC4 ASMCPU ASMKREED SDD1_DECOMP CORRECT_VRAM_READS SPC700ASM I386SPC THREAD_SOUND SYSLIBS CPUINC SYSDEFINES JOYDEFINES X_INCLUDES BUILDDIR NASM GLIDE OPENGL AIDO XSS DREAMCAST NETPLAY JMA LIBOBJS LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -859,6 +859,7 @@ Optional Packages:
   --with(out)-glide         Use 3Dfx glide for output (default: without)
   --with(out)-opengl        Use OpenGL for output (default: without)
   --with(out)-aido          Use a shared memory area for output (default: without)
+  --with(out)-xss           Use XScreenSaver for output (default: without)
   --with(out)-assembler   Use assembler cores if available (default: with)
   --with(out)-zsnesc4     Use ZSNES C4 core if available (default: same as --with-assembler)
   --with(out)-zsnesfx     Use ZSNES SuperFX core if available (default: same as --with-assembler)
@@ -5910,22 +5911,36 @@ if test "${with_aido+set}" = set; then
 else
   with_aido=no
 fi;
+
+# Check whether --with-xss or --without-xss was given.
+if test "${with_xss+set}" = set; then
+  withval="$with_xss"
+
+else
+  with_xss=no
+fi;
 GLIDE='#GLIDE=1'
 AIDO='#AIDO=1'
 OPENGL='#OPENGL=1'
+XSS='#XSS=1'
 snes9x_info_display=X11
 
-if test yes = "$with_glide" ; then
-  GLIDE='GLIDE=1'
-  snes9x_info_display=Glide
+if test yes = "$with_xss" ; then
+  XSS='XSS=1'
+  snes9x_info_display="XScreenSaver"
 else
-  if test yes = "$with_opengl" ; then
-    OPENGL='OPENGL=1'
-    snes9x_info_display="OpenGL on X11"
+  if test yes = "$with_glide" ; then
+    GLIDE='GLIDE=1'
+    snes9x_info_display=Glide
   else
-    if test yes = "$with_aido" ; then
-      AIDO='AIDO=1'
-      snes9x_info_display="X11 and AIDO"
+    if test yes = "$with_opengl" ; then
+      OPENGL='OPENGL=1'
+      snes9x_info_display="OpenGL on X11"
+    else
+      if test yes = "$with_aido" ; then
+        AIDO='AIDO=1'
+        snes9x_info_display="X11 and AIDO"
+      fi
     fi
   fi
 fi
@@ -9997,6 +10012,7 @@ touch dependencies
 
 
 
+
 rm config.info 2>/dev/null
 
 cat >config.info <<EOF
@@ -10697,6 +10713,7 @@ s,@NASM@,$NASM,;t t
 s,@GLIDE@,$GLIDE,;t t
 s,@OPENGL@,$OPENGL,;t t
 s,@AIDO@,$AIDO,;t t
+s,@XSS@,$XSS,;t t
 s,@DREAMCAST@,$DREAMCAST,;t t
 s,@NETPLAY@,$NETPLAY,;t t
 s,@JMA@,$JMA,;t t

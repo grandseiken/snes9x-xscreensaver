@@ -345,7 +345,35 @@ void S9xDeinitDisplay ()
 	}
     }
     XSync (GUI.display, False);
+#ifndef USE_XSS
     XCloseDisplay (GUI.display);
+#endif
+}
+
+void S9xReshape (Display* display, Window window, unsigned int w, unsigned int h)
+{
+    if (window == GUI.window &&
+        (GUI.window_width != w || GUI.window_height != h))
+    {
+        GUI.window_width = w;
+        GUI.window_height = h;
+        IPPU.RenderThisFrame = TRUE;
+        IPPU.FrameSkip = Settings.SkipFrames;
+        SetupImage ();
+    }
+#ifdef USE_DGA_EXTENSION
+    if (XF86.start_full_screen)
+    {
+        XF86.start_full_screen = FALSE;
+        S9xSwitchToFullScreen (TRUE);
+    }
+#endif
+}
+
+void S9xInitVariables (Display* display, Window window)
+{
+  GUI.window = window;
+  GUI.display = display;
 }
 
 void S9xInitDisplay (int, char **)
@@ -358,16 +386,26 @@ void S9xInitDisplay (int, char **)
     }
 #endif
 
+#ifdef USE_XSS
+    XWindowAttributes xgwa;
+    XGetWindowAttributes (GUI.display, GUI.window, &xgwa);
+
+    GUI.screen = xgwa.screen;
+    GUI.visual = xgwa.visual;
+    GUI.window_width = xgwa.width;
+    GUI.window_height = xgwa.height;
+#else
     if (!(GUI.display = XOpenDisplay (NULL)))
     {
 	fprintf (stderr, "Failed to connect to X server.\n");
 	exit (1);
     }
     GUI.screen = DefaultScreenOfDisplay (GUI.display);
-    GUI.screen_num = XScreenNumberOfScreen (GUI.screen);
     GUI.visual = DefaultVisualOfScreen (GUI.screen);
     GUI.window_width = IMAGE_WIDTH;
     GUI.window_height = IMAGE_HEIGHT;
+#endif
+    GUI.screen_num = XScreenNumberOfScreen (GUI.screen);
 
 #ifdef USE_OPENGL
     // XXX:
@@ -575,12 +613,16 @@ supporting PseudoColor, TrueColor or GrayScale.\n");
     XSetWindowAttributes attrib;
 
     attrib.background_pixel = BlackPixelOfScreen (GUI.screen);
+#ifdef USE_XSS
+    XChangeWindowAttributes(GUI.display, GUI.window, CWBackPixel, &attrib);
+#else
     GUI.window = XCreateWindow (GUI.display, RootWindowOfScreen (GUI.screen),
 				(WidthOfScreen(GUI.screen) - GUI.window_width) / 2,
 				(HeightOfScreen(GUI.screen) - GUI.window_height) / 2,
 				GUI.window_width, GUI.window_height, 0,
 				GUI.depth, InputOutput, GUI.visual,
 				CWBackPixel, &attrib);
+#endif
 
 #ifdef USE_DGA_EXTENSION
     CreateFullScreenWindow ();
@@ -747,6 +789,9 @@ void SetupImage ()
 #ifdef MITSHM
     GUI.use_shared_memory = 1;
 
+#ifdef USE_XSS
+#define fprintf(a, b, c...)
+#endif
     int major, minor;
     Bool shared;
     if (!XShmQueryVersion (GUI.display, &major, &minor, &shared) || !shared)
@@ -800,6 +845,9 @@ void SetupImage ()
 	    }
 	}
     }
+#ifdef USE_XSS
+#undef fprintf
+#endif
 
     if (!GUI.use_shared_memory)
     {
@@ -952,6 +1000,7 @@ void S9xProcessEvents (bool8 block)
         S9xMovieOpen(autodemo, TRUE);
         autodemo[0] = 0;
     }
+#ifndef USE_XSS
     while (block || CheckForPendingXEvents (GUI.display))
     {
         XEvent event;
@@ -1018,6 +1067,7 @@ void S9xProcessEvents (bool8 block)
             Repaint(false);
         }
     }
+#endif
 }
 
 void S9xPutImage (int snes_width, int snes_height)
@@ -2132,7 +2182,9 @@ void S9xMessage (int /*type*/, int /*number*/, const char *message)
     fprintf (stdout, "%s\n", message);
     strncpy (buffer, message, MAX_MESSAGE_LEN);
     buffer [MAX_MESSAGE_LEN] = 0;
+#ifndef USE_XSS
     S9xSetInfoString (buffer);
+#endif
 }
 
 void TVMode (int width, int height)

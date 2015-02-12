@@ -8,6 +8,7 @@ UNZIP=1
 @GLIDE@
 @OPENGL@
 @AIDO@
+@XSS@
 #GUI=0
 @THREAD_SOUND@
 @ASMKREED@
@@ -148,6 +149,12 @@ OPENGLDEFINES = -DUSE_OPENGL
 OPENGLLIBS = -lGL -lGLU -ldl
 endif
 
+ifdef XSS
+XSSOBJS = unix/screenhack/colors.o unix/screenhack/fps.o unix/screenhack/grabscreen.o unix/screenhack/hsv.o unix/screenhack/resources.o unix/screenhack/screenhack.o unix/screenhack/usleep.o unix/screenhack/visual.o unix/screenhack/xmu.o unix/screenhack/yarandom.o
+XSSDEFINES = -DUSE_XSS
+EXTRALIBS += -lXt
+endif
+
 ifdef AIDO
 AIDOOBJS = unix/aido.o
 AIDODEFINES = -DUSE_AIDO
@@ -198,6 +205,7 @@ $(JMADEFINES) \
 $(GLIDEDEFINES) \
 $(OPENGLDEFINES) \
 $(AIDODEFINES) \
+$(XSSDEFINES) \
 $(KREEDDEFINES) \
 $(SDD1DEFINES) \
 $(CORRVRAMDEFINES) \
@@ -213,6 +221,9 @@ CFLAGS=$(CCFLAGS)
 #LDLIBS = -L/usr/X11R6/lib
 # -L../zlib
 
+ifdef XSS
+all: Makefile configure xsnes9x
+else
 ifdef GLIDE
 all: Makefile configure gsnes9x
 else
@@ -220,6 +231,7 @@ ifdef OPENGL
 all: Makefile configure osnes9x
 else
 all: Makefile configure snes9x
+endif
 endif
 endif
 
@@ -266,6 +278,9 @@ ggisnes9x: $(OBJECTS) unix/ggi.o
 
 osnes9x: $(OBJECTS) unix/x11.o $(OPENGLOBJS)
 	$(CCC) $(INCLUDES) -o $@ $(OBJECTS) unix/x11.o $(OPENGLOBJS) $(LDLIBS) $(OPENGLLIBS) @SYSLIBS@ -lXext -lX11 $(EXTRALIBS) -lm
+
+xsnes9x: $(OBJECTS) unix/x11.o $(OPENGLOBJS) $(XSSOBJS)
+	$(CCC) $(INCLUDES) -o $@ $(OBJECTS) unix/x11.o $(OPENGLOBJS) $(XSSOBJS) $(LDLIBS) $(OPENGLLIBS) @SYSLIBS@ -lXext -lX11 $(EXTRALIBS) -lm
 
 s9xserver: $(SERVER_OBJECTS)
 	$(CCC) $(INCLUDES) -o $@ $(SERVER_OBJECTS)
@@ -330,7 +345,7 @@ unix/moc_snes9x_gui.cpp: unix/snes9x_gui.h
 	$(MOC) unix/snes9x_gui.h -o $@
 
 clean:
-	rm -f $(OBJECTS) offsets.o unix/svga.o unix/aido.o unix/x11.o unix/ggi.o unix/xf86.o unix/glide.o
+	rm -f $(OBJECTS) $(XSSOBJS) offsets.o unix/svga.o unix/aido.o unix/x11.o unix/ggi.o unix/xf86.o unix/glide.o
 
 #release: CCFLAGS += -DNO_DEBUGGER
 

@@ -288,22 +288,29 @@ dnl Display output
 AC_ARG_WITH(glide,    [  --with(out)-glide         Use 3Dfx glide for output (default: without)],[],[with_glide=no])
 AC_ARG_WITH(opengl,   [  --with(out)-opengl        Use OpenGL for output (default: without)],[],[with_opengl=no])
 AC_ARG_WITH(aido,     [  --with(out)-aido          Use a shared memory area for output (default: without)],[],[with_aido=no])
+AC_ARG_WITH(xss,      [  --with(out)-xss           Use XScreenSaver for output (default: without)],[],[with_xss=no])
 GLIDE='#GLIDE=1'
 AIDO='#AIDO=1'
 OPENGL='#OPENGL=1'
+XSS='#XSS=1'
 snes9x_info_display=X11
 
-if test yes = "$with_glide" ; then
-  GLIDE='GLIDE=1'
-  snes9x_info_display=Glide
+if test yes = "$with_xss" ; then
+  XSS='XSS=1'
+  snes9x_info_display="XScreenSaver"
 else
-  if test yes = "$with_opengl" ; then
-    OPENGL='OPENGL=1'
-    snes9x_info_display="OpenGL on X11"
+  if test yes = "$with_glide" ; then
+    GLIDE='GLIDE=1'
+    snes9x_info_display=Glide
   else
-    if test yes = "$with_aido" ; then
-      AIDO='AIDO=1'
-      snes9x_info_display="X11 and AIDO"
+    if test yes = "$with_opengl" ; then
+      OPENGL='OPENGL=1'
+      snes9x_info_display="OpenGL on X11"
+    else
+      if test yes = "$with_aido" ; then
+        AIDO='AIDO=1'
+        snes9x_info_display="X11 and AIDO"
+      fi
     fi
   fi
 fi
@@ -908,6 +915,7 @@ AC_SUBST(NASM)
 AC_SUBST(GLIDE)
 AC_SUBST(OPENGL)
 AC_SUBST(AIDO)
+AC_SUBST(XSS)
 AC_SUBST(DREAMCAST)
 AC_SUBST(NETPLAY)
 AC_SUBST(JMA)

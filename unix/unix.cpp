@@ -455,10 +455,98 @@ void S9xPostRomInit()
 
 #include "cheats.h"
 
+#ifdef USE_XSS
+extern "C" {
+#include "screenhack/screenhack.h"
+}
+#include "../movie.h"
+
+void S9xReshape (Display*, Window, unsigned int, unsigned int);
+void S9xInitVariables (Display*, Window);
+static unsigned long draw_sleep = 0;
+
+static const char* snes9x_xss_defaults[] = {
+    ".rom:",
+    ".movies:",
+    0
+};
+
+static XrmOptionDescRec snes9x_xss_options[] = {
+    { "-rom", ".rom", XrmoptionSepArg, 0 },
+    { "-movies", ".movies", XrmoptionSepArg, 0 },
+    { 0, 0, (XrmOptionKind) 0, 0 }
+};
+
+void init_movie(Display* display)
+{
+    char* movie_filenames = get_string_resource (display, ".movies", "Movie");
+    if (!movie_filenames || !*movie_filenames) {
+      fprintf(stderr, "-movies flag missing!\n");
+      exit(-1);
+    }
+
+    unsigned int count = 1;
+    for (char* c = movie_filenames; *c; ++c) {
+      if (*c == ',') ++count;
+    }
+    unsigned int choice = random() % count;
+    count = 0;
+    char* first;
+    char* last;
+    for (first = movie_filenames; *first; ++first) {
+      if (count == choice) break;
+      if (*first == ',') ++count;
+    }
+    for (last = first; *last && *last != ','; ++last);
+    strncpy(autodemo, first, last - first);
+}
+
+int error_handler(Display*, XErrorEvent*)
+{
+    return 0;
+}
+
+static Bool snes9x_xss_event (Display* display, Window window, void* closure,
+                              XEvent* event)
+{
+    return 0;
+}
+
+static void snes9x_xss_reshape (Display* display, Window window, void* closure,
+                                unsigned int w, unsigned int h)
+{
+    S9xReshape(display, window, w, h);
+}
+
+static void snes9x_xss_free (Display* display, Window window, void* closure)
+{
+    Settings.StopEmulation = TRUE;
+    S9xResetSaveTimer (FALSE);
+    if(Settings.SPC7110)
+        (*CleanUp7110)();
+
+    S9xSetSoundMute (TRUE);
+    S9xDeinitDisplay ();
+    Memory.SaveSRAM (S9xGetFilename (".srm", SRAM_DIR));
+    S9xSaveCheatFile (S9xGetFilename (".cht", PATCH_DIR));
+    Memory.Deinit ();
+    S9xDeinitAPU ();
+
+#ifdef NETPLAY_SUPPORT
+    if (Settings.NetPlay)
+      S9xNPDisconnect();
+#endif
+}
+
+static void* snes9x_xss_init (Display* display, Window window)
+{
+    XSetErrorHandler(error_handler);
+#else
 int main (int argc, char **argv)
 {
     if (argc < S9xMinCommandLineArgs ())
 	S9xUsage ();
+#endif
 
     ZeroMemory (&Settings, sizeof (Settings));
 
@@ -475,8 +563,18 @@ int main (int argc, char **argv)
     Settings.SoundBufferSize = 0;
     Settings.APUEnabled = Settings.NextAPUEnabled = TRUE;
 
+#ifdef USE_XSS
+    S9xLoadConfigFiles(0, 0);
+    Settings.SupportHiRes = TRUE;
+    rom_filename = get_string_resource (display, ".rom", "Rom");
+    if (!rom_filename || !*rom_filename) {
+      fprintf(stderr, "-rom flag missing!\n");
+      exit(-1);
+    }
+#else
     S9xLoadConfigFiles(argv, argc);
     rom_filename = S9xParseArgs (argv, argc);
+#endif
     S9xReportControllers();
 
     Settings.Transparency = Settings.ForceTransparency;
@@ -488,8 +586,10 @@ int main (int argc, char **argv)
 
 	Memory.PostRomInitFunc = S9xPostRomInit;
 
+#ifndef USE_XSS
     S9xInitSound (Settings.SoundPlaybackRate, Settings.Stereo,
                   Settings.SoundBufferSize);
+#endif
 
 	S9xSetSoundMute (TRUE);
 
@@ -573,10 +673,17 @@ int main (int argc, char **argv)
 
     S9xInitInputDevices ();
 
+#ifdef USE_XSS
+    S9xInitVariables (display, window);
+    S9xInitDisplay (0, 0);
+#else
     S9xInitDisplay (argc, argv);
+#endif
     if (!S9xGraphicsInit ())
 	OutOfMemory ();
+#ifndef USE_XSS
     S9xSetupDefaultKeymap();
+#endif
 
     S9xTextMode ();
 
@@ -628,20 +735,30 @@ int main (int argc, char **argv)
 
     sprintf (String, "\"%s\" %s: %s", Memory.ROMName, TITLE, VERSION);
     S9xSetTitle (String);
-
-#ifdef JOYSTICK_SUPPORT
-    uint32 JoypadSkip = 0;
-#endif
-
     InitTimer ();
 
 	S9xSetSoundMute (FALSE);
+#ifdef USE_XSS
+    return (void*) -1;
+}
+
+static unsigned long snes9x_xss_draw (Display* display, Window window, void* closure)
+{
+    if (!S9xMovieActive()) {
+        init_movie(display);
+    }
+#else
+    while (1)
+    {
+#endif
+
+#ifdef JOYSTICK_SUPPORT
+        uint32 JoypadSkip = 0;
+#endif
 
 #ifdef NETPLAY_SUPPORT
 	int NP_Activated=Settings.NetPlay;
 #endif
-    while (1)
-    {
 
 #ifdef NETPLAY_SUPPORT
 	if (NP_Activated)
@@ -711,11 +828,13 @@ int main (int argc, char **argv)
 	}
 	else
 #endif
+#ifndef USE_XSS
 	if (Settings.Paused)
 	{
 	    S9xProcessEvents (FALSE);
 	    usleep(100000);
 	}
+#endif
 
 #ifdef JOYSTICK_SUPPORT
 	if (Settings.JoystickEnabled && (JoypadSkip++ & 1) == 0)
@@ -731,9 +850,17 @@ int main (int argc, char **argv)
 	{
 	    S9xSetSoundMute (FALSE);
 	}
+#ifndef USE_XSS
     }
     return (0);
+#else
+    return draw_sleep;
+#endif
 }
+
+#ifdef USE_XSS
+XSCREENSAVER_MODULE("Snes9x", snes9x_xss)
+#endif
 
 void S9xAutoSaveSRAM ()
 {
@@ -742,6 +869,7 @@ void S9xAutoSaveSRAM ()
 
 void S9xExit ()
 {
+#ifndef USE_XSS
 	Settings.StopEmulation = TRUE;
     S9xResetSaveTimer (FALSE);
     if(Settings.SPC7110)
@@ -760,6 +888,7 @@ void S9xExit ()
 #endif
 
     exit (0);
+#endif
 }
 
 void S9xInitInputDevices ()
@@ -798,7 +927,7 @@ void InitJoysticks ()
 
 #ifdef JSIOCGNAME
     char name [130];
-    bzero (name, 128);
+    memset (name, 0, 128);
     if (ioctl (js_fd [0], JSIOCGNAME(128), name) > 0)
     {
         printf ("Using %s (%s) as joystick1\n", name, js_device [0]);
@@ -1407,12 +1536,19 @@ void S9xSyncSpeed ()
      * be using it. We don't actually need it either.
      */
 
+#ifdef USE_XSS
+    draw_sleep = 0;
+#endif
     while(timercmp(&next1, &now, >))
     {
         /* If we're ahead of time, sleep a while */
         unsigned timeleft =
             (next1.tv_sec - now.tv_sec) * 1000000
            + next1.tv_usec - now.tv_usec;
+#ifdef USE_XSS
+        draw_sleep = timeleft;
+        break;
+#else
         //fprintf(stderr, "<%u>", timeleft);
         usleep(timeleft);
 
@@ -1422,6 +1558,7 @@ void S9xSyncSpeed ()
         /* Continue with a while-loop because usleep()
          * could be interrupted by a signal
          */
+#endif
     }
 
     /* Calculate the timestamp of the next frame. */
@@ -1433,7 +1570,7 @@ void S9xSyncSpeed ()
     }
 }
 
-static long log2 (long num)
+static long long_log2 (long num)
 {
     long n = 0;
 
@@ -1812,7 +1949,7 @@ bool8 S9xOpenSoundDevice (int mode, bool8 stereo, int buffer_size)
     if (so.stereo)
 	buffer_size *= 2;
 
-    int power2 = log2 (buffer_size);
+    int power2 = long_log2 (buffer_size);
     J = K = power2 | (3 << 16);
     if (ioctl (so.sound_fd, SNDCTL_DSP_SETFRAGMENT, &J) < 0)
     {

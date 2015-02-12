@@ -163,6 +163,12 @@
 #ifndef _SNES9X_H_
 #define _SNES9X_H_
 
+#ifdef USE_XSS
+#undef JOYSTICK_SUPPORT
+#undef USE_DGA_EXTENSION
+#define NOSOUND
+#endif
+
 #define VERSION "1.51"
 
 #include <stdio.h>
